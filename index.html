@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplication Quiz Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen active">
+        <div class="container">
+            <header>
+                <h1>Multiplication Quiz</h1>
+                <p>Test your multiplication skills!</p>
+            </header>
+
+            <main>
+                <div class="difficulty-selection">
+                    <h2>Choose Difficulty</h2>
+                    <div class="difficulty-buttons">
+                        <button class="difficulty-btn" data-difficulty="easy">
+                            <span class="difficulty-title">Easy</span>
+                            <span class="difficulty-desc">Tables 1-4</span>
+                        </button>
+                        <button class="difficulty-btn" data-difficulty="medium">
+                            <span class="difficulty-title">Medium</span>
+                            <span class="difficulty-desc">Tables 5-8</span>
+                        </button>
+                        <button class="difficulty-btn" data-difficulty="hard">
+                            <span class="difficulty-title">Hard</span>
+                            <span class="difficulty-desc">Tables 9-12</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="menu-actions">
+                    <button id="high-scores-btn" class="secondary-btn">View High Scores</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Quiz Screen -->
+    <div id="quiz-screen" class="screen">
+        <div class="container">
+            <header class="quiz-header">
+                <div class="quiz-info">
+                    <span id="question-counter">Question 1 of 20</span>
+                    <span id="difficulty-display"></span>
+                </div>
+                <div class="timer">
+                    <span>Time: </span>
+                    <span id="timer-display">00:00</span>
+                </div>
+            </header>
+
+            <main class="quiz-main">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div class="question-container">
+                    <h2 id="question-text" class="question-text">7 × 9 = ?</h2>
+                </div>
+
+                <div class="answers-container">
+                    <button class="answer-btn" data-answer="0">Answer 1</button>
+                    <button class="answer-btn" data-answer="1">Answer 2</button>
+                    <button class="answer-btn" data-answer="2">Answer 3</button>
+                    <button class="answer-btn" data-answer="3">Answer 4</button>
+                </div>
+
+                <div class="quiz-actions">
+                    <button id="quit-quiz-btn" class="secondary-btn">Quit Quiz</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="results-screen" class="screen">
+        <div class="container">
+            <header>
+                <h1>Quiz Complete!</h1>
+            </header>
+
+            <main class="results-main">
+                <div class="score-container">
+                    <div class="score-item">
+                        <span class="score-label">Score:</span>
+                        <span id="final-score" class="score-value">85%</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">Time:</span>
+                        <span id="final-time" class="score-value">02:34</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">Correct:</span>
+                        <span id="final-correct" class="score-value">17/20</span>
+                    </div>
+                </div>
+
+                <div id="high-score-notification" class="high-score-notification hidden">
+                    <h3>🎉 New High Score!</h3>
+                    <p>Congratulations on your personal best!</p>
+                </div>
+
+                <div class="results-actions">
+                    <button id="play-again-btn" class="primary-btn">Play Again</button>
+                    <button id="change-difficulty-btn" class="secondary-btn">Change Difficulty</button>
+                    <button id="view-scores-btn" class="secondary-btn">View High Scores</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- High Scores Screen -->
+    <div id="high-scores-screen" class="screen">
+        <div class="container">
+            <header>
+                <h1>High Scores</h1>
+            </header>
+
+            <main class="high-scores-main">
+                <div class="difficulty-tabs">
+                    <button class="tab-btn active" data-tab="easy">Easy</button>
+                    <button class="tab-btn" data-tab="medium">Medium</button>
+                    <button class="tab-btn" data-tab="hard">Hard</button>
+                </div>
+
+                <div class="scores-container">
+                    <div id="easy-scores" class="scores-list active">
+                        <div class="no-scores">No scores yet. Play your first quiz!</div>
+                    </div>
+                    <div id="medium-scores" class="scores-list">
+                        <div class="no-scores">No scores yet. Play your first quiz!</div>
+                    </div>
+                    <div id="hard-scores" class="scores-list">
+                        <div class="no-scores">No scores yet. Play your first quiz!</div>
+                    </div>
+                </div>
+
+                <div class="high-scores-actions">
+                    <button id="back-to-menu-btn" class="secondary-btn">Back to Menu</button>
+                    <button id="clear-scores-btn" class="danger-btn">Clear All Scores</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Loading/Feedback Overlay -->
+    <div id="feedback-overlay" class="feedback-overlay hidden">
+        <div class="feedback-content">
+            <div class="feedback-icon"></div>
+            <div class="feedback-text"></div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="modal-title">Confirm Action</h3>
+            <p id="modal-message">Are you sure you want to perform this action?</p>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="secondary-btn">Cancel</button>
+                <button id="modal-confirm" class="primary-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
