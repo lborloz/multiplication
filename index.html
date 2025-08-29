@@ -161,7 +161,87 @@
 
                 <div class="high-scores-actions">
                     <button id="back-to-menu-btn" class="secondary-btn" aria-label="Return to main menu">Back to Menu</button>
+                    <button id="statistics-btn" class="primary-btn" aria-label="View comprehensive statistics dashboard">Statistics</button>
+                    <button id="export-scores-btn" class="secondary-btn" aria-label="Export all high scores data">Export Data</button>
+                    <button id="import-scores-btn" class="secondary-btn" aria-label="Import high scores data">Import Data</button>
+                    <button id="share-scores-btn" class="secondary-btn" aria-label="Share your high scores">Share Scores</button>
                     <button id="clear-scores-btn" class="danger-btn" aria-label="Clear all saved high scores - this action cannot be undone">Clear All Scores</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Statistics Screen -->
+    <div id="statistics-screen" class="screen" role="main" aria-label="Performance statistics">
+        <div class="container">
+            <header>
+                <h1>Performance Statistics</h1>
+            </header>
+
+            <main class="statistics-main">
+                <!-- Overall Performance Summary -->
+                <div class="stats-section">
+                    <h2>Overall Performance</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-quizzes">0</div>
+                            <div class="stat-label">Total Quizzes</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="avg-score">0%</div>
+                            <div class="stat-label">Average Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="best-streak">0</div>
+                            <div class="stat-label">Best Streak</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-time">0m</div>
+                            <div class="stat-label">Total Play Time</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Difficulty Performance -->
+                <div class="stats-section">
+                    <h2>Performance by Difficulty</h2>
+                    <div class="difficulty-stats" id="difficulty-stats">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Score Trends Chart -->
+                <div class="stats-section">
+                    <h2>Score Trends</h2>
+                    <div class="chart-container">
+                        <canvas id="scores-chart" width="400" height="200" aria-label="Score trends over time chart"></canvas>
+                        <div id="chart-fallback" class="chart-fallback hidden">
+                            <p>Chart visualization not available. Score data:</p>
+                            <div id="chart-data-text"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multiplication Table Mastery -->
+                <div class="stats-section">
+                    <h2>Multiplication Table Mastery</h2>
+                    <div class="mastery-grid" id="mastery-grid">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Recent Achievements -->
+                <div class="stats-section">
+                    <h2>Recent Achievements</h2>
+                    <div class="achievements-list" id="achievements-list">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="statistics-actions">
+                    <button id="back-to-scores-btn" class="secondary-btn" aria-label="Return to high scores">Back to High Scores</button>
+                    <button id="print-stats-btn" class="secondary-btn" aria-label="Print statistics report">Print Report</button>
+                    <button id="export-stats-btn" class="primary-btn" aria-label="Export detailed statistics">Export Statistics</button>
                 </div>
             </main>
         </div>
@@ -186,6 +266,29 @@
             <div class="modal-actions">
                 <button id="modal-cancel" class="secondary-btn" aria-label="Cancel this action">Cancel</button>
                 <button id="modal-confirm" class="primary-btn" aria-label="Confirm this action">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for data import -->
+    <input type="file" id="import-file-input" accept=".json" style="display: none;" aria-label="Select JSON file to import">
+
+    <!-- Share Modal -->
+    <div id="share-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
+        <div class="modal-content">
+            <h3 id="share-modal-title">Share Your Scores</h3>
+            <div class="share-content">
+                <p>Share your multiplication quiz achievements with friends!</p>
+                <div class="share-url-container">
+                    <input type="text" id="share-url" readonly aria-label="Shareable URL for your scores">
+                    <button id="copy-url-btn" class="primary-btn" aria-label="Copy share URL to clipboard">Copy URL</button>
+                </div>
+                <div class="share-summary" id="share-summary">
+                    <!-- Will be populated with score summary -->
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="share-modal-close" class="secondary-btn" aria-label="Close share dialog">Close</button>
             </div>
         </div>
     </div>

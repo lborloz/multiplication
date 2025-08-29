@@ -39,6 +39,7 @@ class MultiplicationQuiz {
         this.showScreen('start');
         this.loadHighScores();
         this.addTouchImprovements();
+        this.checkSharedData();
     }
     
     bindEvents() {
@@ -85,6 +86,48 @@ class MultiplicationQuiz {
         
         document.getElementById('clear-scores-btn').addEventListener('click', () => {
             this.confirmClearScores();
+        });
+        
+        // Phase 3: Enhanced high scores features
+        document.getElementById('statistics-btn').addEventListener('click', () => {
+            this.showStatistics();
+        });
+        
+        document.getElementById('export-scores-btn').addEventListener('click', () => {
+            this.exportScoresData();
+        });
+        
+        document.getElementById('import-scores-btn').addEventListener('click', () => {
+            document.getElementById('import-file-input').click();
+        });
+        
+        document.getElementById('share-scores-btn').addEventListener('click', () => {
+            this.showShareModal();
+        });
+        
+        document.getElementById('back-to-scores-btn').addEventListener('click', () => {
+            this.showHighScores();
+        });
+        
+        document.getElementById('print-stats-btn').addEventListener('click', () => {
+            this.printStatistics();
+        });
+        
+        document.getElementById('export-stats-btn').addEventListener('click', () => {
+            this.exportStatisticsData();
+        });
+        
+        document.getElementById('copy-url-btn').addEventListener('click', () => {
+            this.copyShareUrl();
+        });
+        
+        document.getElementById('share-modal-close').addEventListener('click', () => {
+            this.hideShareModal();
+        });
+        
+        // File import handler
+        document.getElementById('import-file-input').addEventListener('change', (e) => {
+            this.importScoresData(e.target.files[0]);
         });
         
         // High score tabs
@@ -687,6 +730,9 @@ class MultiplicationQuiz {
                 case 'high-scores':
                     focusTarget = document.querySelector('.tab-btn.active');
                     break;
+                case 'statistics':
+                    focusTarget = document.querySelector('#back-to-scores-btn');
+                    break;
             }
             
             if (focusTarget) {
@@ -1037,6 +1083,616 @@ class MultiplicationQuiz {
         };
         
         document.addEventListener('keydown', keySkip);
+    }
+    
+    // Phase 3: Enhanced High Scores Features
+    
+    exportScoresData() {
+        const exportData = {
+            version: '3.0',
+            exportDate: new Date().toISOString(),
+            scores: {},
+            tableProgress: this.tableProgress,
+            achievements: JSON.parse(localStorage.getItem('quiz_achievements') || '[]')
+        };
+        
+        // Export all difficulty scores
+        Object.keys(this.difficulties).forEach(difficulty => {
+            exportData.scores[difficulty] = this.getScoresForDifficulty(difficulty);
+        });
+        
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `multiplication-quiz-data-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        this.announceToScreenReader('Quiz data exported successfully');
+    }
+    
+    async importScoresData(file) {
+        if (!file) return;
+        
+        try {
+            const text = await file.text();
+            const importData = JSON.parse(text);
+            
+            // Validate import data
+            if (!importData.version || !importData.scores) {
+                throw new Error('Invalid file format');
+            }
+            
+            const confirmImport = confirm(
+                `Import data from ${new Date(importData.exportDate).toLocaleDateString()}?\n\n` +
+                `This will merge with your existing data. Continue?`
+            );
+            
+            if (confirmImport) {
+                // Import scores
+                Object.keys(importData.scores).forEach(difficulty => {
+                    const existingScores = this.getScoresForDifficulty(difficulty);
+                    const importedScores = importData.scores[difficulty] || [];
+                    
+                    // Merge and sort scores
+                    const mergedScores = [...existingScores, ...importedScores];
+                    mergedScores.sort((a, b) => {
+                        if (a.percentage !== b.percentage) {
+                            return b.percentage - a.percentage;
+                        }
+                        return a.time - b.time;
+                    });
+                    
+                    // Keep only top 20 scores to prevent bloat
+                    const topScores = mergedScores.slice(0, 20);
+                    localStorage.setItem(`quiz_scores_${difficulty}`, JSON.stringify(topScores));
+                });
+                
+                // Import table progress if available
+                if (importData.tableProgress) {
+                    // Merge table progress data
+                    Object.keys(importData.tableProgress).forEach(table => {
+                        if (this.tableProgress[table]) {
+                            const imported = importData.tableProgress[table];
+                            this.tableProgress[table].total += imported.total || 0;
+                            this.tableProgress[table].correct += imported.correct || 0;
+                            
+                            // Merge recent attempts (keep most recent 10)
+                            if (imported.recentAttempts) {
+                                this.tableProgress[table].recentAttempts.push(...imported.recentAttempts);
+                                this.tableProgress[table].recentAttempts = 
+                                    this.tableProgress[table].recentAttempts.slice(-10);
+                            }
+                        }
+                    });
+                    this.saveTableProgress();
+                }
+                
+                // Import achievements if available
+                if (importData.achievements) {
+                    const existingAchievements = JSON.parse(localStorage.getItem('quiz_achievements') || '[]');
+                    const mergedAchievements = [...existingAchievements, ...importData.achievements];
+                    localStorage.setItem('quiz_achievements', JSON.stringify(mergedAchievements));
+                }
+                
+                // Refresh displays
+                this.loadHighScores();
+                this.announceToScreenReader('Data imported successfully');
+                
+                alert('Data imported successfully! Your scores and progress have been merged.');
+            }
+        } catch (error) {
+            console.error('Import error:', error);
+            alert('Error importing data. Please check the file format and try again.');
+        }
+        
+        // Clear the file input
+        document.getElementById('import-file-input').value = '';
+    }
+    
+    showStatistics() {
+        this.displayOverallStats();
+        this.displayDifficultyStats();
+        this.displayScoreChart();
+        this.displayMasteryGrid();
+        this.displayRecentAchievements();
+        this.showScreen('statistics');
+    }
+    
+    displayOverallStats() {
+        const allScores = [];
+        let totalQuizzes = 0;
+        let totalPlayTime = 0;
+        
+        Object.keys(this.difficulties).forEach(difficulty => {
+            const scores = this.getScoresForDifficulty(difficulty);
+            allScores.push(...scores);
+            totalQuizzes += scores.length;
+            totalPlayTime += scores.reduce((sum, score) => sum + (score.time || 0), 0);
+        });
+        
+        const avgScore = allScores.length > 0 
+            ? Math.round(allScores.reduce((sum, score) => sum + score.percentage, 0) / allScores.length)
+            : 0;
+            
+        // Calculate best streak from achievements
+        const achievements = JSON.parse(localStorage.getItem('quiz_achievements') || '[]');
+        const streakAchievements = achievements.filter(a => a.type === 'streak');
+        const bestStreak = streakAchievements.length > 0 
+            ? Math.max(...streakAchievements.map(a => parseInt(a.message.match(/\d+/)[0])))
+            : 0;
+        
+        const totalTimeMinutes = Math.round(totalPlayTime / 60000);
+        
+        document.getElementById('total-quizzes').textContent = totalQuizzes;
+        document.getElementById('avg-score').textContent = `${avgScore}%`;
+        document.getElementById('best-streak').textContent = bestStreak;
+        document.getElementById('total-time').textContent = `${totalTimeMinutes}m`;
+    }
+    
+    displayDifficultyStats() {
+        const container = document.getElementById('difficulty-stats');
+        container.innerHTML = '';
+        
+        Object.keys(this.difficulties).forEach(difficulty => {
+            const scores = this.getScoresForDifficulty(difficulty);
+            
+            if (scores.length === 0) {
+                return; // Skip difficulties with no scores
+            }
+            
+            const avgScore = Math.round(
+                scores.reduce((sum, score) => sum + score.percentage, 0) / scores.length
+            );
+            
+            const avgTime = Math.round(
+                scores.reduce((sum, score) => sum + score.time, 0) / scores.length / 1000
+            );
+            
+            const bestScore = Math.max(...scores.map(s => s.percentage));
+            
+            const difficultyEl = document.createElement('div');
+            difficultyEl.className = 'difficulty-stat';
+            difficultyEl.innerHTML = `
+                <div class="difficulty-name">${this.difficulties[difficulty].name}</div>
+                <div class="difficulty-performance">
+                    <div class="performance-metric">
+                        <div class="performance-value">${avgScore}%</div>
+                        <div class="performance-label">Avg Score</div>
+                    </div>
+                    <div class="performance-metric">
+                        <div class="performance-value">${avgTime}s</div>
+                        <div class="performance-label">Avg Time</div>
+                    </div>
+                    <div class="performance-metric">
+                        <div class="performance-value">${bestScore}%</div>
+                        <div class="performance-label">Best Score</div>
+                    </div>
+                    <div class="performance-metric">
+                        <div class="performance-value">${scores.length}</div>
+                        <div class="performance-label">Total Plays</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(difficultyEl);
+        });
+    }
+    
+    displayScoreChart() {
+        const canvas = document.getElementById('scores-chart');
+        const fallback = document.getElementById('chart-fallback');
+        const fallbackText = document.getElementById('chart-data-text');
+        
+        // Get recent scores (last 20 across all difficulties)
+        const allScores = [];
+        Object.keys(this.difficulties).forEach(difficulty => {
+            const scores = this.getScoresForDifficulty(difficulty);
+            scores.forEach(score => {
+                allScores.push({
+                    ...score,
+                    difficulty: difficulty,
+                    date: new Date(score.date)
+                });
+            });
+        });
+        
+        allScores.sort((a, b) => a.date - b.date);
+        const recentScores = allScores.slice(-20);
+        
+        if (recentScores.length === 0) {
+            fallback.classList.remove('hidden');
+            fallbackText.textContent = 'No quiz data available yet. Complete some quizzes to see your progress!';
+            return;
+        }
+        
+        // Try to render chart using Canvas API
+        try {
+            const ctx = canvas.getContext('2d');
+            this.drawScoreChart(ctx, recentScores, canvas.width, canvas.height);
+            fallback.classList.add('hidden');
+        } catch (error) {
+            // Fallback to text representation
+            console.log('Chart rendering failed, using text fallback:', error);
+            fallback.classList.remove('hidden');
+            
+            const textData = recentScores.map((score, index) => 
+                `${index + 1}. ${score.percentage}% (${score.difficulty}, ${new Date(score.date).toLocaleDateString()})`
+            ).join('<br>');
+            
+            fallbackText.innerHTML = `Recent Scores:<br>${textData}`;
+        }
+    }
+    
+    drawScoreChart(ctx, scores, width, height) {
+        const padding = 40;
+        const chartWidth = width - 2 * padding;
+        const chartHeight = height - 2 * padding;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        // Set up styles
+        ctx.fillStyle = '#f8f9ff';
+        ctx.fillRect(0, 0, width, height);
+        
+        if (scores.length === 0) return;
+        
+        // Calculate scales
+        const maxScore = Math.max(...scores.map(s => s.percentage));
+        const minScore = Math.min(...scores.map(s => s.percentage));
+        const scoreRange = maxScore - minScore || 1;
+        
+        // Draw grid lines
+        ctx.strokeStyle = '#e0e7ff';
+        ctx.lineWidth = 1;
+        
+        // Horizontal grid lines (score percentages)
+        for (let i = 0; i <= 10; i++) {
+            const y = padding + (i / 10) * chartHeight;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(width - padding, y);
+            ctx.stroke();
+            
+            // Labels
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${100 - i * 10}%`, padding - 5, y + 4);
+        }
+        
+        // Vertical grid lines
+        const stepSize = Math.max(1, Math.floor(scores.length / 5));
+        for (let i = 0; i < scores.length; i += stepSize) {
+            const x = padding + (i / (scores.length - 1)) * chartWidth;
+            ctx.beginPath();
+            ctx.moveTo(x, padding);
+            ctx.lineTo(x, height - padding);
+            ctx.stroke();
+        }
+        
+        // Draw score line
+        ctx.strokeStyle = '#667eea';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        
+        scores.forEach((score, index) => {
+            const x = padding + (index / (scores.length - 1)) * chartWidth;
+            const y = height - padding - ((score.percentage - minScore) / scoreRange) * chartHeight;
+            
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        
+        ctx.stroke();
+        
+        // Draw data points
+        ctx.fillStyle = '#667eea';
+        scores.forEach((score, index) => {
+            const x = padding + (index / (scores.length - 1)) * chartWidth;
+            const y = height - padding - ((score.percentage - minScore) / scoreRange) * chartHeight;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+        
+        // Title
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Score Progress Over Time', width / 2, 25);
+    }
+    
+    displayMasteryGrid() {
+        const container = document.getElementById('mastery-grid');
+        container.innerHTML = '';
+        
+        for (let table = 1; table <= 12; table++) {
+            const progress = this.tableProgress[table];
+            const cell = document.createElement('div');
+            cell.className = 'mastery-cell';
+            cell.textContent = table;
+            
+            let status, accuracy = 0;
+            if (progress.total === 0) {
+                status = 'not-attempted';
+                cell.title = `${table}x table: Not practiced yet`;
+            } else {
+                accuracy = Math.round((progress.correct / progress.total) * 100);
+                if (progress.mastered) {
+                    status = 'mastered';
+                    cell.title = `${table}x table: Mastered! ${accuracy}% accuracy (${progress.total} attempts)`;
+                } else if (accuracy >= 70) {
+                    status = 'learning';
+                    cell.title = `${table}x table: Learning - ${accuracy}% accuracy (${progress.total} attempts)`;
+                } else {
+                    status = 'needs-practice';
+                    cell.title = `${table}x table: Needs practice - ${accuracy}% accuracy (${progress.total} attempts)`;
+                }
+            }
+            
+            cell.classList.add(status);
+            container.appendChild(cell);
+        }
+    }
+    
+    displayRecentAchievements() {
+        const container = document.getElementById('achievements-list');
+        const achievements = JSON.parse(localStorage.getItem('quiz_achievements') || '[]');
+        
+        if (achievements.length === 0) {
+            container.innerHTML = '<div class="no-achievements">No achievements yet. Keep playing to unlock achievements!</div>';
+            return;
+        }
+        
+        // Sort by date (most recent first) and take last 10
+        const recentAchievements = achievements
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .slice(0, 10);
+        
+        container.innerHTML = recentAchievements.map(achievement => {
+            const icon = this.getAchievementIcon(achievement.type);
+            const date = new Date(achievement.date).toLocaleDateString();
+            
+            return `
+                <div class="achievement-item">
+                    <div class="achievement-icon">${icon}</div>
+                    <div class="achievement-details">
+                        <div class="achievement-title">${achievement.title}</div>
+                        <div class="achievement-description">${achievement.message}</div>
+                        <div class="achievement-date">${date} • ${achievement.difficulty} difficulty</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    getAchievementIcon(type) {
+        const icons = {
+            streak: '🔥',
+            speed: '⚡',
+            accuracy: '🎯',
+            perfect: '🌟',
+            improvement: '📈',
+            dedication: '💪'
+        };
+        return icons[type] || '🏆';
+    }
+    
+    showShareModal() {
+        const modal = document.getElementById('share-modal');
+        const summary = document.getElementById('share-summary');
+        const urlInput = document.getElementById('share-url');
+        
+        // Generate share data
+        const shareData = this.generateShareData();
+        const shareUrl = this.generateShareUrl(shareData);
+        
+        urlInput.value = shareUrl;
+        
+        // Display summary
+        summary.innerHTML = `
+            <h4>Your Multiplication Quiz Stats</h4>
+            <div class="share-stats">
+                <div class="share-stat">
+                    <div class="share-stat-value">${shareData.totalQuizzes}</div>
+                    <div class="share-stat-label">Total Quizzes</div>
+                </div>
+                <div class="share-stat">
+                    <div class="share-stat-value">${shareData.avgScore}%</div>
+                    <div class="share-stat-label">Average Score</div>
+                </div>
+                <div class="share-stat">
+                    <div class="share-stat-value">${shareData.bestScore}%</div>
+                    <div class="share-stat-label">Best Score</div>
+                </div>
+                <div class="share-stat">
+                    <div class="share-stat-value">${shareData.masteredTables}</div>
+                    <div class="share-stat-label">Tables Mastered</div>
+                </div>
+            </div>
+        `;
+        
+        modal.classList.remove('hidden');
+    }
+    
+    generateShareData() {
+        const allScores = [];
+        Object.keys(this.difficulties).forEach(difficulty => {
+            allScores.push(...this.getScoresForDifficulty(difficulty));
+        });
+        
+        const totalQuizzes = allScores.length;
+        const avgScore = totalQuizzes > 0 
+            ? Math.round(allScores.reduce((sum, score) => sum + score.percentage, 0) / totalQuizzes)
+            : 0;
+        const bestScore = totalQuizzes > 0 ? Math.max(...allScores.map(s => s.percentage)) : 0;
+        
+        const masteredTables = Object.values(this.tableProgress)
+            .filter(progress => progress.mastered).length;
+        
+        return {
+            totalQuizzes,
+            avgScore,
+            bestScore,
+            masteredTables,
+            timestamp: Date.now()
+        };
+    }
+    
+    generateShareUrl(data) {
+        const baseUrl = window.location.origin + window.location.pathname;
+        const encodedData = btoa(JSON.stringify(data));
+        return `${baseUrl}?share=${encodedData}`;
+    }
+    
+    copyShareUrl() {
+        const urlInput = document.getElementById('share-url');
+        
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(urlInput.value).then(() => {
+                const btn = document.getElementById('copy-url-btn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#4CAF50';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+                
+                this.announceToScreenReader('Share URL copied to clipboard');
+            }).catch(() => {
+                this.fallbackCopyUrl(urlInput);
+            });
+        } else {
+            this.fallbackCopyUrl(urlInput);
+        }
+    }
+    
+    fallbackCopyUrl(urlInput) {
+        urlInput.select();
+        urlInput.setSelectionRange(0, 99999); // For mobile devices
+        
+        try {
+            document.execCommand('copy');
+            alert('Share URL copied to clipboard!');
+            this.announceToScreenReader('Share URL copied to clipboard');
+        } catch (err) {
+            alert('Please manually copy the URL from the text field.');
+        }
+    }
+    
+    hideShareModal() {
+        document.getElementById('share-modal').classList.add('hidden');
+    }
+    
+    printStatistics() {
+        const originalTitle = document.title;
+        document.title = 'Multiplication Quiz Statistics Report';
+        
+        // Hide non-statistics screens
+        document.querySelectorAll('.screen').forEach(screen => {
+            if (screen.id !== 'statistics-screen') {
+                screen.style.display = 'none';
+            }
+        });
+        
+        window.print();
+        
+        // Restore original state
+        document.title = originalTitle;
+        document.querySelectorAll('.screen').forEach(screen => {
+            screen.style.display = '';
+        });
+    }
+    
+    exportStatisticsData() {
+        const statsData = {
+            version: '3.0',
+            exportDate: new Date().toISOString(),
+            overallStats: {
+                totalQuizzes: parseInt(document.getElementById('total-quizzes').textContent),
+                avgScore: document.getElementById('avg-score').textContent,
+                bestStreak: parseInt(document.getElementById('best-streak').textContent),
+                totalTime: document.getElementById('total-time').textContent
+            },
+            difficultyStats: {},
+            tableProgress: this.tableProgress,
+            achievements: JSON.parse(localStorage.getItem('quiz_achievements') || '[]'),
+            allScores: {}
+        };
+        
+        // Add difficulty stats
+        Object.keys(this.difficulties).forEach(difficulty => {
+            const scores = this.getScoresForDifficulty(difficulty);
+            statsData.allScores[difficulty] = scores;
+            
+            if (scores.length > 0) {
+                statsData.difficultyStats[difficulty] = {
+                    avgScore: Math.round(scores.reduce((sum, s) => sum + s.percentage, 0) / scores.length),
+                    avgTime: Math.round(scores.reduce((sum, s) => sum + s.time, 0) / scores.length / 1000),
+                    bestScore: Math.max(...scores.map(s => s.percentage)),
+                    totalPlays: scores.length
+                };
+            }
+        });
+        
+        const dataStr = JSON.stringify(statsData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `multiplication-quiz-stats-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        this.announceToScreenReader('Statistics exported successfully');
+    }
+    
+    // Check for shared data on page load
+    checkSharedData() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sharedData = urlParams.get('share');
+        
+        if (sharedData) {
+            try {
+                const data = JSON.parse(atob(sharedData));
+                this.displaySharedStats(data);
+            } catch (error) {
+                console.log('Invalid share data:', error);
+            }
+        }
+    }
+    
+    displaySharedStats(data) {
+        const message = `
+🎯 Multiplication Quiz Stats Shared!
+
+📊 Performance Summary:
+• Total Quizzes: ${data.totalQuizzes}
+• Average Score: ${data.avgScore}%
+• Best Score: ${data.bestScore}%
+• Tables Mastered: ${data.masteredTables}
+
+Shared on: ${new Date(data.timestamp).toLocaleDateString()}
+
+Try to beat these scores in your own quiz!
+        `;
+        
+        alert(message);
     }
     
     getRandomNumber(min, max) {
