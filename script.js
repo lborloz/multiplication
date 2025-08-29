@@ -25,6 +25,7 @@ class MultiplicationQuiz {
         this.bindEvents();
         this.showScreen('start');
         this.loadHighScores();
+        this.addTouchImprovements();
     }
     
     bindEvents() {
@@ -105,6 +106,18 @@ class MultiplicationQuiz {
         // Show target screen
         document.getElementById(`${screenName}-screen`).classList.add('active');
         this.currentScreen = screenName;
+        
+        // Manage focus for accessibility
+        this.manageFocus(screenName);
+        
+        // Announce screen change to screen readers
+        const screenLabels = {
+            'start': 'Main menu loaded',
+            'quiz': 'Quiz started',
+            'results': 'Quiz results displayed',
+            'high-scores': 'High scores displayed'
+        };
+        this.announceToScreenReader(screenLabels[screenName] || `${screenName} screen loaded`);
     }
     
     startQuiz(difficulty) {
@@ -208,9 +221,12 @@ class MultiplicationQuiz {
         const progress = ((this.currentQuestionIndex + 1) / this.totalQuestions) * 100;
         
         // Update question display
-        document.getElementById('question-text').textContent = `${question.num1} × ${question.num2} = ?`;
+        const questionText = `${question.num1} × ${question.num2} = ?`;
+        document.getElementById('question-text').textContent = questionText;
         document.getElementById('question-counter').textContent = `Question ${this.currentQuestionIndex + 1} of ${this.totalQuestions}`;
-        document.getElementById('progress-fill').style.width = `${progress}%`;
+        
+        // Update progress bar with accessibility
+        this.updateProgressBar();
         
         // Update answer buttons
         const answerButtons = document.querySelectorAll('.answer-btn');
@@ -218,7 +234,11 @@ class MultiplicationQuiz {
             btn.textContent = question.answers[index];
             btn.classList.remove('correct', 'incorrect');
             btn.disabled = false;
+            btn.setAttribute('aria-label', `Answer option ${index + 1}: ${question.answers[index]}`);
         });
+        
+        // Announce new question to screen readers
+        this.announceToScreenReader(`Question ${this.currentQuestionIndex + 1}: ${questionText}`);
         
         this.questionStartTime = new Date();
     }
@@ -227,6 +247,9 @@ class MultiplicationQuiz {
         const question = this.questions[this.currentQuestionIndex];
         const answerButtons = document.querySelectorAll('.answer-btn');
         const isCorrect = selectedIndex === question.correctIndex;
+        
+        // Provide haptic feedback on mobile devices
+        this.provideHapticFeedback(isCorrect);
         
         // Disable all buttons
         answerButtons.forEach(btn => btn.disabled = true);
@@ -237,12 +260,18 @@ class MultiplicationQuiz {
             answerButtons[question.correctIndex].classList.add('correct');
         }
         
+        let feedbackMessage;
         if (isCorrect) {
             this.score++;
-            this.showFeedback('✓', 'Correct!', 'correct');
+            feedbackMessage = 'Correct!';
+            this.showFeedback('✓', feedbackMessage, 'correct');
         } else {
+            feedbackMessage = `Incorrect. The correct answer is ${question.correctAnswer}`;
             this.showFeedback('✗', `Correct answer: ${question.correctAnswer}`, 'incorrect');
         }
+        
+        // Announce result to screen readers
+        this.announceToScreenReader(feedbackMessage);
         
         // Move to next question after delay
         setTimeout(() => {
@@ -353,17 +382,23 @@ class MultiplicationQuiz {
     }
     
     switchScoreTab(difficulty) {
-        // Update tab buttons
+        // Update tab buttons with ARIA
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
         });
-        document.querySelector(`[data-tab="${difficulty}"]`).classList.add('active');
+        const activeTab = document.querySelector(`[data-tab="${difficulty}"]`);
+        activeTab.classList.add('active');
+        activeTab.setAttribute('aria-selected', 'true');
         
         // Update score lists
         document.querySelectorAll('.scores-list').forEach(list => {
             list.classList.remove('active');
         });
         document.getElementById(`${difficulty}-scores`).classList.add('active');
+        
+        // Announce tab change
+        this.announceToScreenReader(`${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} difficulty scores displayed`);
     }
     
     startTimer() {
@@ -450,21 +485,186 @@ class MultiplicationQuiz {
     }
     
     handleKeyboard(e) {
-        if (this.currentScreen === 'quiz') {
-            // Allow number keys 1-4 to select answers
-            if (e.key >= '1' && e.key <= '4') {
-                const index = parseInt(e.key) - 1;
-                if (!document.querySelectorAll('.answer-btn')[index].disabled) {
-                    this.selectAnswer(index);
-                }
-            }
-        }
-        
-        // ESC to close modals
+        // ESC to close modals/feedback
         if (e.key === 'Escape') {
             this.hideModal();
             this.hideFeedback();
+            return;
         }
+        
+        if (this.currentScreen === 'start') {
+            // Arrow key navigation for difficulty buttons
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                this.navigateDifficulty('next');
+                e.preventDefault();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                this.navigateDifficulty('prev');
+                e.preventDefault();
+            } else if (e.key === 'Enter' || e.key === ' ') {
+                const focused = document.activeElement;
+                if (focused && focused.classList.contains('difficulty-btn')) {
+                    focused.click();
+                    e.preventDefault();
+                }
+            }
+        } else if (this.currentScreen === 'quiz') {
+            // Number keys 1-4 to select answers
+            if (e.key >= '1' && e.key <= '4') {
+                const index = parseInt(e.key) - 1;
+                const buttons = document.querySelectorAll('.answer-btn');
+                if (buttons[index] && !buttons[index].disabled) {
+                    this.selectAnswer(index);
+                }
+            }
+            // Arrow keys to navigate answer buttons
+            else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                this.navigateAnswers(e.key);
+                e.preventDefault();
+            }
+        } else if (this.currentScreen === 'high-scores') {
+            // Arrow key navigation for tabs
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                this.navigateScoreTabs(e.key === 'ArrowRight' ? 'next' : 'prev');
+                e.preventDefault();
+            }
+        }
+    }
+    
+    navigateDifficulty(direction) {
+        const buttons = document.querySelectorAll('.difficulty-btn');
+        const currentIndex = Array.from(buttons).findIndex(btn => btn === document.activeElement);
+        let newIndex;
+        
+        if (currentIndex === -1) {
+            newIndex = 0; // Focus first button if none focused
+        } else {
+            newIndex = direction === 'next' 
+                ? (currentIndex + 1) % buttons.length 
+                : (currentIndex - 1 + buttons.length) % buttons.length;
+        }
+        
+        buttons[newIndex].focus();
+        this.announceToScreenReader(`${buttons[newIndex].getAttribute('aria-label')} selected`);
+    }
+    
+    navigateAnswers(key) {
+        const buttons = document.querySelectorAll('.answer-btn:not([disabled])');
+        if (buttons.length === 0) return;
+        
+        const currentIndex = Array.from(buttons).findIndex(btn => btn === document.activeElement);
+        let newIndex;
+        
+        switch (key) {
+            case 'ArrowUp':
+            case 'ArrowLeft':
+                newIndex = currentIndex <= 0 ? buttons.length - 1 : currentIndex - 1;
+                break;
+            case 'ArrowDown':
+            case 'ArrowRight':
+                newIndex = currentIndex >= buttons.length - 1 ? 0 : currentIndex + 1;
+                break;
+        }
+        
+        buttons[newIndex].focus();
+    }
+    
+    navigateScoreTabs(direction) {
+        const tabs = document.querySelectorAll('.tab-btn');
+        const currentIndex = Array.from(tabs).findIndex(tab => tab.classList.contains('active'));
+        let newIndex;
+        
+        if (direction === 'next') {
+            newIndex = (currentIndex + 1) % tabs.length;
+        } else {
+            newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        }
+        
+        tabs[newIndex].click();
+        tabs[newIndex].focus();
+    }
+    
+    announceToScreenReader(message) {
+        const announcer = document.getElementById('sr-announcements');
+        if (announcer) {
+            announcer.textContent = message;
+            // Clear after screen reader has time to announce
+            setTimeout(() => {
+                announcer.textContent = '';
+            }, 1000);
+        }
+    }
+    
+    updateProgressBar() {
+        const progressBar = document.querySelector('.progress-bar');
+        const progressFill = document.getElementById('progress-fill');
+        
+        if (progressBar && progressFill) {
+            const percentage = ((this.currentQuestionIndex + 1) / this.totalQuestions) * 100;
+            progressBar.setAttribute('aria-valuenow', Math.round(percentage));
+            progressBar.setAttribute('aria-valuetext', `Question ${this.currentQuestionIndex + 1} of ${this.totalQuestions}`);
+            progressFill.style.width = `${percentage}%`;
+        }
+    }
+    
+    manageFocus(screenName) {
+        // Set focus to appropriate element when switching screens
+        setTimeout(() => {
+            let focusTarget;
+            
+            switch (screenName) {
+                case 'start':
+                    focusTarget = document.querySelector('.difficulty-btn');
+                    break;
+                case 'quiz':
+                    focusTarget = document.querySelector('.answer-btn');
+                    break;
+                case 'results':
+                    focusTarget = document.querySelector('#play-again-btn');
+                    break;
+                case 'high-scores':
+                    focusTarget = document.querySelector('.tab-btn.active');
+                    break;
+            }
+            
+            if (focusTarget) {
+                focusTarget.focus();
+            }
+        }, 100);
+    }
+    
+    provideHapticFeedback(isCorrect) {
+        // Provide haptic feedback on supported devices
+        if ('vibrate' in navigator) {
+            if (isCorrect) {
+                // Short, pleasant vibration for correct answers
+                navigator.vibrate(100);
+            } else {
+                // Two quick vibrations for incorrect answers
+                navigator.vibrate([50, 50, 50]);
+            }
+        }
+    }
+    
+    addTouchImprovements() {
+        // Add touch event improvements for better mobile experience
+        const buttons = document.querySelectorAll('.answer-btn, .difficulty-btn, .tab-btn');
+        
+        buttons.forEach(button => {
+            // Prevent double-tap zoom on buttons
+            button.addEventListener('touchstart', (e) => {
+                button.style.transform = 'scale(0.98)';
+            }, { passive: true });
+            
+            button.addEventListener('touchend', (e) => {
+                button.style.transform = '';
+                // Prevent ghost clicks
+                e.preventDefault();
+            });
+            
+            button.addEventListener('touchcancel', (e) => {
+                button.style.transform = '';
+            });
+        });
     }
     
     getRandomNumber(min, max) {

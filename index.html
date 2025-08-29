@@ -5,10 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multiplication Quiz Game</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
 </head>
 <body>
     <!-- Start Screen -->
-    <div id="start-screen" class="screen active">
+    <div id="start-screen" class="screen active" role="main" aria-label="Main menu">
         <div class="container">
             <header>
                 <h1>Multiplication Quiz</h1>
@@ -17,156 +30,162 @@
 
             <main>
                 <div class="difficulty-selection">
-                    <h2>Choose Difficulty</h2>
-                    <div class="difficulty-buttons">
-                        <button class="difficulty-btn" data-difficulty="easy">
+                    <h2 id="difficulty-heading">Choose Difficulty</h2>
+                    <div class="difficulty-buttons" role="group" aria-labelledby="difficulty-heading" aria-describedby="difficulty-help">
+                        <button class="difficulty-btn" data-difficulty="easy" aria-label="Easy difficulty: multiplication tables 1 through 4">
                             <span class="difficulty-title">Easy</span>
                             <span class="difficulty-desc">Tables 1-4</span>
                         </button>
-                        <button class="difficulty-btn" data-difficulty="medium">
+                        <button class="difficulty-btn" data-difficulty="medium" aria-label="Medium difficulty: multiplication tables 5 through 8">
                             <span class="difficulty-title">Medium</span>
                             <span class="difficulty-desc">Tables 5-8</span>
                         </button>
-                        <button class="difficulty-btn" data-difficulty="hard">
+                        <button class="difficulty-btn" data-difficulty="hard" aria-label="Hard difficulty: multiplication tables 9 through 12">
                             <span class="difficulty-title">Hard</span>
                             <span class="difficulty-desc">Tables 9-12</span>
                         </button>
                     </div>
+                    <div id="difficulty-help" class="sr-only">Select a difficulty level to start your multiplication quiz. Use arrow keys to navigate options.</div>
                 </div>
 
                 <div class="menu-actions">
-                    <button id="high-scores-btn" class="secondary-btn">View High Scores</button>
+                    <button id="high-scores-btn" class="secondary-btn" aria-label="View high scores for all difficulty levels">View High Scores</button>
                 </div>
             </main>
         </div>
     </div>
 
     <!-- Quiz Screen -->
-    <div id="quiz-screen" class="screen">
+    <div id="quiz-screen" class="screen" role="main" aria-label="Multiplication quiz">
         <div class="container">
             <header class="quiz-header">
                 <div class="quiz-info">
-                    <span id="question-counter">Question 1 of 20</span>
-                    <span id="difficulty-display"></span>
+                    <span id="question-counter" aria-live="polite" aria-label="Question progress">Question 1 of 20</span>
+                    <span id="difficulty-display" aria-label="Current difficulty level"></span>
                 </div>
                 <div class="timer">
                     <span>Time: </span>
-                    <span id="timer-display">00:00</span>
+                    <span id="timer-display" aria-live="polite" aria-label="Elapsed time">00:00</span>
                 </div>
             </header>
 
             <main class="quiz-main">
                 <div class="progress-container">
-                    <div class="progress-bar">
+                    <div class="progress-bar" role="progressbar" aria-valuenow="5" aria-valuemin="0" aria-valuemax="100" aria-label="Quiz progress">
                         <div id="progress-fill" class="progress-fill"></div>
                     </div>
                 </div>
 
                 <div class="question-container">
-                    <h2 id="question-text" class="question-text">7 × 9 = ?</h2>
+                    <h2 id="question-text" class="question-text" aria-label="Current multiplication question">7 × 9 = ?</h2>
                 </div>
 
-                <div class="answers-container">
-                    <button class="answer-btn" data-answer="0">Answer 1</button>
-                    <button class="answer-btn" data-answer="1">Answer 2</button>
-                    <button class="answer-btn" data-answer="2">Answer 3</button>
-                    <button class="answer-btn" data-answer="3">Answer 4</button>
+                <div class="answers-container" role="group" aria-labelledby="question-text" aria-describedby="answer-instructions">
+                    <button class="answer-btn" data-answer="0" aria-label="Answer option 1">Answer 1</button>
+                    <button class="answer-btn" data-answer="1" aria-label="Answer option 2">Answer 2</button>
+                    <button class="answer-btn" data-answer="2" aria-label="Answer option 3">Answer 3</button>
+                    <button class="answer-btn" data-answer="3" aria-label="Answer option 4">Answer 4</button>
                 </div>
+                <div id="answer-instructions" class="sr-only">Choose the correct answer. You can use number keys 1 through 4 or click the buttons.</div>
 
                 <div class="quiz-actions">
-                    <button id="quit-quiz-btn" class="secondary-btn">Quit Quiz</button>
+                    <button id="quit-quiz-btn" class="secondary-btn" aria-label="Quit current quiz and return to main menu">Quit Quiz</button>
                 </div>
             </main>
         </div>
     </div>
 
     <!-- Results Screen -->
-    <div id="results-screen" class="screen">
+    <div id="results-screen" class="screen" role="main" aria-label="Quiz results">
         <div class="container">
             <header>
                 <h1>Quiz Complete!</h1>
             </header>
 
             <main class="results-main">
-                <div class="score-container">
+                <div class="score-container" role="group" aria-labelledby="results-heading">
+                    <h2 id="results-heading" class="sr-only">Your quiz results</h2>
                     <div class="score-item">
                         <span class="score-label">Score:</span>
-                        <span id="final-score" class="score-value">85%</span>
+                        <span id="final-score" class="score-value" aria-label="Final score percentage">85%</span>
                     </div>
                     <div class="score-item">
                         <span class="score-label">Time:</span>
-                        <span id="final-time" class="score-value">02:34</span>
+                        <span id="final-time" class="score-value" aria-label="Total time taken">02:34</span>
                     </div>
                     <div class="score-item">
                         <span class="score-label">Correct:</span>
-                        <span id="final-correct" class="score-value">17/20</span>
+                        <span id="final-correct" class="score-value" aria-label="Number of correct answers out of total">17/20</span>
                     </div>
                 </div>
 
-                <div id="high-score-notification" class="high-score-notification hidden">
+                <div id="high-score-notification" class="high-score-notification hidden" role="alert" aria-live="assertive">
                     <h3>🎉 New High Score!</h3>
                     <p>Congratulations on your personal best!</p>
                 </div>
 
                 <div class="results-actions">
-                    <button id="play-again-btn" class="primary-btn">Play Again</button>
-                    <button id="change-difficulty-btn" class="secondary-btn">Change Difficulty</button>
-                    <button id="view-scores-btn" class="secondary-btn">View High Scores</button>
+                    <button id="play-again-btn" class="primary-btn" aria-label="Start another quiz with the same difficulty">Play Again</button>
+                    <button id="change-difficulty-btn" class="secondary-btn" aria-label="Return to main menu to select different difficulty">Change Difficulty</button>
+                    <button id="view-scores-btn" class="secondary-btn" aria-label="View high scores for all difficulty levels">View High Scores</button>
                 </div>
             </main>
         </div>
     </div>
 
     <!-- High Scores Screen -->
-    <div id="high-scores-screen" class="screen">
+    <div id="high-scores-screen" class="screen" role="main" aria-label="High scores">
         <div class="container">
             <header>
                 <h1>High Scores</h1>
             </header>
 
             <main class="high-scores-main">
-                <div class="difficulty-tabs">
-                    <button class="tab-btn active" data-tab="easy">Easy</button>
-                    <button class="tab-btn" data-tab="medium">Medium</button>
-                    <button class="tab-btn" data-tab="hard">Hard</button>
+                <div class="difficulty-tabs" role="tablist" aria-label="Difficulty level high scores">
+                    <button class="tab-btn active" data-tab="easy" role="tab" aria-selected="true" aria-controls="easy-scores" id="easy-tab">Easy</button>
+                    <button class="tab-btn" data-tab="medium" role="tab" aria-selected="false" aria-controls="medium-scores" id="medium-tab">Medium</button>
+                    <button class="tab-btn" data-tab="hard" role="tab" aria-selected="false" aria-controls="hard-scores" id="hard-tab">Hard</button>
                 </div>
 
                 <div class="scores-container">
-                    <div id="easy-scores" class="scores-list active">
+                    <div id="easy-scores" class="scores-list active" role="tabpanel" aria-labelledby="easy-tab" aria-label="Easy difficulty high scores">
                         <div class="no-scores">No scores yet. Play your first quiz!</div>
                     </div>
-                    <div id="medium-scores" class="scores-list">
+                    <div id="medium-scores" class="scores-list" role="tabpanel" aria-labelledby="medium-tab" aria-label="Medium difficulty high scores">
                         <div class="no-scores">No scores yet. Play your first quiz!</div>
                     </div>
-                    <div id="hard-scores" class="scores-list">
+                    <div id="hard-scores" class="scores-list" role="tabpanel" aria-labelledby="hard-tab" aria-label="Hard difficulty high scores">
                         <div class="no-scores">No scores yet. Play your first quiz!</div>
                     </div>
                 </div>
 
                 <div class="high-scores-actions">
-                    <button id="back-to-menu-btn" class="secondary-btn">Back to Menu</button>
-                    <button id="clear-scores-btn" class="danger-btn">Clear All Scores</button>
+                    <button id="back-to-menu-btn" class="secondary-btn" aria-label="Return to main menu">Back to Menu</button>
+                    <button id="clear-scores-btn" class="danger-btn" aria-label="Clear all saved high scores - this action cannot be undone">Clear All Scores</button>
                 </div>
             </main>
         </div>
     </div>
 
     <!-- Loading/Feedback Overlay -->
-    <div id="feedback-overlay" class="feedback-overlay hidden">
+    <div id="feedback-overlay" class="feedback-overlay hidden" role="alert" aria-live="assertive" aria-label="Answer feedback">
         <div class="feedback-content">
-            <div class="feedback-icon"></div>
+            <div class="feedback-icon" aria-hidden="true"></div>
             <div class="feedback-text"></div>
         </div>
     </div>
 
+    <!-- Screen reader announcements -->
+    <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
     <!-- Confirmation Modal -->
-    <div id="confirmation-modal" class="modal hidden">
+    <div id="confirmation-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message">
         <div class="modal-content">
             <h3 id="modal-title">Confirm Action</h3>
             <p id="modal-message">Are you sure you want to perform this action?</p>
             <div class="modal-actions">
-                <button id="modal-cancel" class="secondary-btn">Cancel</button>
-                <button id="modal-confirm" class="primary-btn">Confirm</button>
+                <button id="modal-cancel" class="secondary-btn" aria-label="Cancel this action">Cancel</button>
+                <button id="modal-confirm" class="primary-btn" aria-label="Confirm this action">Confirm</button>
             </div>
         </div>
     </div>
