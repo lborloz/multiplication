@@ -18,6 +18,19 @@ class MultiplicationQuiz {
         };
         
         this.totalQuestions = 20;
+        
+        // Achievement tracking
+        this.currentStreak = 0;
+        this.sessionStats = {
+            correct: 0,
+            total: 0,
+            fastAnswers: 0, // answers under 3 seconds
+            perfectStreak: 0
+        };
+        
+        // Progress tracking by multiplication table
+        this.tableProgress = this.loadTableProgress();
+        
         this.init();
     }
     
@@ -248,6 +261,24 @@ class MultiplicationQuiz {
         const answerButtons = document.querySelectorAll('.answer-btn');
         const isCorrect = selectedIndex === question.correctIndex;
         
+        // Calculate response time
+        const responseTime = new Date() - this.questionStartTime;
+        
+        // Update session stats
+        this.sessionStats.total++;
+        if (isCorrect) {
+            this.sessionStats.correct++;
+            this.currentStreak++;
+            this.sessionStats.perfectStreak = Math.max(this.sessionStats.perfectStreak, this.currentStreak);
+            
+            // Track fast answers (under 3 seconds)
+            if (responseTime < 3000) {
+                this.sessionStats.fastAnswers++;
+            }
+        } else {
+            this.currentStreak = 0;
+        }
+        
         // Provide haptic feedback on mobile devices
         this.provideHapticFeedback(isCorrect);
         
@@ -260,24 +291,36 @@ class MultiplicationQuiz {
             answerButtons[question.correctIndex].classList.add('correct');
         }
         
+        // Track progress by table
+        this.updateTableProgress(question.num1, question.num2, isCorrect, responseTime);
+        
+        // Check for achievements
+        this.checkAchievements(isCorrect, responseTime);
+        
         let feedbackMessage;
         if (isCorrect) {
             this.score++;
             feedbackMessage = 'Correct!';
-            this.showFeedback('✓', feedbackMessage, 'correct');
+            const encouragement = this.getEncouragement();
+            this.showFeedback('✓', `${feedbackMessage} ${encouragement}`, 'correct');
         } else {
             feedbackMessage = `Incorrect. The correct answer is ${question.correctAnswer}`;
-            this.showFeedback('✗', `Correct answer: ${question.correctAnswer}`, 'incorrect');
+            const hint = this.generateLearningHint(question.num1, question.num2, question.correctAnswer);
+            this.showFeedback('✗', `Correct answer: ${question.correctAnswer}`, 'incorrect', hint);
         }
         
         // Announce result to screen readers
         this.announceToScreenReader(feedbackMessage);
         
-        // Move to next question after delay
-        setTimeout(() => {
+        // Move to next question after optimized delay
+        const delay = isCorrect ? 1000 : 1500; // Shorter delay for correct answers
+        this.feedbackTimeout = setTimeout(() => {
             this.hideFeedback();
             this.nextQuestion();
-        }, 1500);
+        }, delay);
+        
+        // Allow skipping feedback with click/tap
+        this.enableFeedbackSkip();
     }
     
     nextQuestion() {
@@ -318,6 +361,9 @@ class MultiplicationQuiz {
         } else {
             notification.classList.add('hidden');
         }
+        
+        // Show progress insights
+        this.displayProgressInsights();
         
         this.showScreen('results');
     }
@@ -422,15 +468,21 @@ class MultiplicationQuiz {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     
-    showFeedback(icon, text, type) {
+    showFeedback(icon, text, type, hint = null) {
         const overlay = document.getElementById('feedback-overlay');
         const iconEl = overlay.querySelector('.feedback-icon');
         const textEl = overlay.querySelector('.feedback-text');
         
         iconEl.textContent = icon;
-        textEl.textContent = text;
+        
+        if (hint && type === 'incorrect') {
+            textEl.innerHTML = `<div class="feedback-main">${text}</div><div class="feedback-hint">${hint}</div><div class="feedback-skip-hint">Click or press Space to continue</div>`;
+        } else {
+            textEl.innerHTML = `<div class="feedback-main">${text}</div><div class="feedback-skip-hint">Click or press Space to continue</div>`;
+        }
         
         overlay.classList.remove('hidden');
+        overlay.className = `feedback-overlay ${type}`;
     }
     
     hideFeedback() {
@@ -665,6 +717,273 @@ class MultiplicationQuiz {
                 button.style.transform = '';
             });
         });
+    }
+    
+    generateLearningHint(num1, num2, correctAnswer) {
+        const strategies = [
+            // Skip counting strategy
+            `💡 Try skip counting by ${num1}: ` + Array.from({length: num2}, (_, i) => num1 * (i + 1)).join(', '),
+            
+            // Breaking down strategy
+            num2 > 5 ? `💡 Break it down: ${num1} × ${num2 - 1} + ${num1} = ${num1 * (num2 - 1)} + ${num1} = ${correctAnswer}` : null,
+            
+            // Doubling strategy for even numbers
+            num2 % 2 === 0 ? `💡 Double it: ${num1} × ${num2/2} × 2 = ${num1 * (num2/2)} × 2 = ${correctAnswer}` : null,
+            
+            // Commutative property
+            `💡 Remember: ${num1} × ${num2} = ${num2} × ${num1}`,
+            
+            // Visual groups
+            num1 <= 4 && num2 <= 4 ? `💡 Think of ${num1} groups of ${num2} things each` : null,
+            
+            // Using 10s for larger numbers
+            num2 === 10 ? `💡 Easy! Just add a zero to ${num1}` : null,
+            
+            // Square numbers
+            num1 === num2 ? `💡 This is ${num1} squared (${num1} × ${num1})` : null
+        ].filter(Boolean);
+        
+        return strategies[Math.floor(Math.random() * strategies.length)];
+    }
+    
+    getEncouragement() {
+        const encouragements = [
+            '🌟', '✨', '🎉', '👏', '💪', '🔥', 'Great!', 'Awesome!', 'Perfect!', 'Excellent!', 'Well done!'
+        ];
+        return encouragements[Math.floor(Math.random() * encouragements.length)];
+    }
+    
+    checkAchievements(isCorrect, responseTime) {
+        const achievements = [];
+        
+        // Streak achievements
+        if (this.currentStreak === 5) {
+            achievements.push({ type: 'streak', title: 'Hot Streak! 🔥', message: '5 correct answers in a row!' });
+        } else if (this.currentStreak === 10) {
+            achievements.push({ type: 'streak', title: 'Amazing Streak! ✨', message: '10 correct answers in a row!' });
+        } else if (this.currentStreak === 15) {
+            achievements.push({ type: 'streak', title: 'Incredible! 🎆', message: '15 correct answers in a row!' });
+        }
+        
+        // Speed achievements
+        if (isCorrect && responseTime < 2000 && this.sessionStats.fastAnswers === 5) {
+            achievements.push({ type: 'speed', title: 'Speed Demon! ⚡', message: '5 answers under 2 seconds!' });
+        }
+        
+        // Accuracy achievements  
+        const accuracy = (this.sessionStats.correct / this.sessionStats.total) * 100;
+        if (this.sessionStats.total >= 10 && accuracy === 100) {
+            achievements.push({ type: 'accuracy', title: 'Perfect Score! 🎆', message: 'All answers correct!' });
+        }
+        
+        // Show achievements
+        achievements.forEach(achievement => {
+            setTimeout(() => {
+                this.showAchievement(achievement);
+            }, 1000);
+        });
+    }
+    
+    showAchievement(achievement) {
+        // Create achievement notification
+        const achievementEl = document.createElement('div');
+        achievementEl.className = 'achievement-notification';
+        achievementEl.innerHTML = `
+            <div class="achievement-content">
+                <div class="achievement-title">${achievement.title}</div>
+                <div class="achievement-message">${achievement.message}</div>
+            </div>
+        `;
+        
+        document.body.appendChild(achievementEl);
+        
+        // Animate in
+        setTimeout(() => {
+            achievementEl.classList.add('show');
+        }, 100);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            achievementEl.classList.add('hide');
+            setTimeout(() => {
+                document.body.removeChild(achievementEl);
+            }, 500);
+        }, 3000);
+        
+        // Announce to screen readers
+        this.announceToScreenReader(`Achievement unlocked: ${achievement.title} ${achievement.message}`);
+        
+        // Save achievement
+        this.saveAchievement(achievement);
+    }
+    
+    saveAchievement(achievement) {
+        const achievements = JSON.parse(localStorage.getItem('quiz_achievements') || '[]');
+        achievement.date = new Date().toISOString();
+        achievement.difficulty = this.currentDifficulty;
+        achievements.push(achievement);
+        localStorage.setItem('quiz_achievements', JSON.stringify(achievements));
+    }
+    
+    loadTableProgress() {
+        const saved = localStorage.getItem('quiz_table_progress');
+        if (saved) {
+            return JSON.parse(saved);
+        }
+        
+        // Initialize progress tracking for tables 1-12
+        const progress = {};
+        for (let i = 1; i <= 12; i++) {
+            progress[i] = {
+                correct: 0,
+                total: 0,
+                averageTime: 0,
+                recentAttempts: [], // Last 10 attempts
+                mastered: false // 90%+ accuracy over last 10 attempts
+            };
+        }
+        return progress;
+    }
+    
+    updateTableProgress(num1, num2, isCorrect, responseTime) {
+        // Update progress for both numbers (since 4×3 = 3×4)
+        [num1, num2].forEach(num => {
+            if (num >= 1 && num <= 12) {
+                const table = this.tableProgress[num];
+                
+                // Update basic stats
+                table.total++;
+                if (isCorrect) {
+                    table.correct++;
+                }
+                
+                // Update recent attempts (keep last 10)
+                table.recentAttempts.push({ correct: isCorrect, time: responseTime });
+                if (table.recentAttempts.length > 10) {
+                    table.recentAttempts.shift();
+                }
+                
+                // Calculate average time
+                const totalTime = table.recentAttempts.reduce((sum, attempt) => sum + attempt.time, 0);
+                table.averageTime = totalTime / table.recentAttempts.length;
+                
+                // Check mastery (90%+ accuracy over last 10 attempts)
+                if (table.recentAttempts.length >= 10) {
+                    const recentCorrect = table.recentAttempts.filter(a => a.correct).length;
+                    table.mastered = (recentCorrect / table.recentAttempts.length) >= 0.9;
+                }
+            }
+        });
+        
+        // Save progress
+        this.saveTableProgress();
+    }
+    
+    saveTableProgress() {
+        localStorage.setItem('quiz_table_progress', JSON.stringify(this.tableProgress));
+    }
+    
+    getTableStats() {
+        const stats = [];
+        for (let i = 1; i <= 12; i++) {
+            const table = this.tableProgress[i];
+            if (table.total > 0) {
+                const accuracy = Math.round((table.correct / table.total) * 100);
+                const avgTime = Math.round(table.averageTime / 1000 * 10) / 10; // seconds with 1 decimal
+                
+                stats.push({
+                    table: i,
+                    accuracy,
+                    avgTime,
+                    total: table.total,
+                    mastered: table.mastered,
+                    needsPractice: accuracy < 70 && table.total >= 5
+                });
+            }
+        }
+        
+        return stats.sort((a, b) => {
+            // Sort by needs practice first, then by accuracy
+            if (a.needsPractice && !b.needsPractice) return -1;
+            if (!a.needsPractice && b.needsPractice) return 1;
+            return a.accuracy - b.accuracy;
+        });
+    }
+    
+    showProgressInsights() {
+        const stats = this.getTableStats();
+        
+        if (stats.length === 0) {
+            return 'Keep practicing to see your progress! 💪';
+        }
+        
+        const mastered = stats.filter(s => s.mastered);
+        const needsPractice = stats.filter(s => s.needsPractice);
+        
+        let message = '';
+        
+        if (mastered.length > 0) {
+            message += `🌟 Mastered tables: ${mastered.map(s => s.table).join(', ')}\n`;
+        }
+        
+        if (needsPractice.length > 0) {
+            message += `🎯 Focus on tables: ${needsPractice.map(s => s.table).join(', ')}`;
+        } else if (mastered.length > 0) {
+            message += `🎆 Great job! Keep up the excellent work!`;
+        }
+        
+        return message;
+    }
+    
+    displayProgressInsights() {
+        const insights = this.showProgressInsights();
+        let insightsContainer = document.getElementById('progress-insights');
+        
+        if (!insightsContainer) {
+            // Create insights container if it doesn't exist
+            insightsContainer = document.createElement('div');
+            insightsContainer.id = 'progress-insights';
+            insightsContainer.className = 'progress-insights';
+            
+            const resultsMain = document.querySelector('.results-main');
+            const actionsDiv = document.querySelector('.results-actions');
+            resultsMain.insertBefore(insightsContainer, actionsDiv);
+        }
+        
+        insightsContainer.innerHTML = `
+            <h3>📊 Your Progress</h3>
+            <div class="insights-content">${insights.replace(/\n/g, '<br>')}</div>
+        `;
+    }
+    
+    enableFeedbackSkip() {
+        const overlay = document.getElementById('feedback-overlay');
+        
+        const skipFeedback = (e) => {
+            if (this.feedbackTimeout) {
+                clearTimeout(this.feedbackTimeout);
+                this.hideFeedback();
+                this.nextQuestion();
+                
+                // Remove event listeners
+                overlay.removeEventListener('click', skipFeedback);
+                overlay.removeEventListener('touchend', skipFeedback);
+            }
+        };
+        
+        // Add click/touch handlers to skip feedback
+        overlay.addEventListener('click', skipFeedback);
+        overlay.addEventListener('touchend', skipFeedback);
+        
+        // Also allow space/enter to skip
+        const keySkip = (e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+                skipFeedback(e);
+                document.removeEventListener('keydown', keySkip);
+            }
+        };
+        
+        document.addEventListener('keydown', keySkip);
     }
     
     getRandomNumber(min, max) {
