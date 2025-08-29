@@ -869,10 +869,10 @@ button:focus {
 /* Mobile (320px - 767px) */
 @media (max-width: 767px) {
     .container {
-        padding: 15px;
+        padding: 10px 15px;
         min-height: 100vh;
         justify-content: flex-start;
-        padding-top: 20px;
+        padding-top: 15px;
     }
     
     h1 {
@@ -890,27 +890,52 @@ button:focus {
     }
     
     .answers-container {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
         gap: 0.8rem;
+        margin-bottom: 5rem;
     }
     
     .answer-btn {
-        padding: 1.2rem;
+        padding: 1rem;
         font-size: 1rem;
     }
     
     .question-text {
-        font-size: 2rem;
+        font-size: 2.4rem;
+        font-weight: bold;
+        color: #1a202c;
+        text-shadow: none;
+    }
+    
+    .question-container {
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        border: 2px solid rgba(102, 126, 234, 0.1);
     }
     
     .quiz-header {
-        flex-direction: column;
-        text-align: center;
+        background: transparent;
+        padding: 0.5rem 0;
+        border-radius: 0;
+        margin-bottom: 1rem;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left;
         gap: 0.5rem;
+        box-shadow: none;
     }
     
     .quiz-info, .timer {
-        align-items: center;
+        align-items: flex-start;
+        font-size: 0.95rem;
+    }
+    
+    .quiz-info span, .timer span {
+        color: rgba(255, 255, 255, 0.95);
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        font-weight: 600;
     }
     
     .difficulty-tabs {
@@ -945,6 +970,10 @@ button:focus {
     .results-actions,
     .high-scores-actions {
         gap: 0.8rem;
+    }
+    
+    .progress-container {
+        margin-bottom: 1.5rem;
     }
     
     .results-actions button,
