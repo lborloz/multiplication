@@ -306,21 +306,28 @@ class MultiplicationQuiz {
         } else {
             feedbackMessage = `Incorrect. The correct answer is ${question.correctAnswer}`;
             const hint = this.generateLearningHint(question.num1, question.num2, question.correctAnswer);
-            this.showFeedback('✗', `Correct answer: ${question.correctAnswer}`, 'incorrect', hint);
+            const problemText = `${question.num1} × ${question.num2} = ${question.correctAnswer}`;
+            this.showFeedback('✗', problemText, 'incorrect', hint);
         }
         
         // Announce result to screen readers
         this.announceToScreenReader(feedbackMessage);
         
-        // Move to next question after optimized delay
-        const delay = isCorrect ? 1000 : 1500; // Shorter delay for correct answers
-        this.feedbackTimeout = setTimeout(() => {
-            this.hideFeedback();
-            this.nextQuestion();
-        }, delay);
-        
-        // Allow skipping feedback with click/tap
-        this.enableFeedbackSkip();
+        // Handle feedback timing based on answer correctness
+        if (isCorrect) {
+            // Correct answers: auto-dismiss after short delay (current behavior)
+            const delay = 1000;
+            this.feedbackTimeout = setTimeout(() => {
+                this.hideFeedback();
+                this.nextQuestion();
+            }, delay);
+            
+            // Allow skipping feedback with click/tap
+            this.enableFeedbackSkip();
+        } else {
+            // Incorrect answers: stay visible until user taps to dismiss
+            this.enableFeedbackSkip();
+        }
     }
     
     nextQuestion() {
@@ -475,10 +482,14 @@ class MultiplicationQuiz {
         
         iconEl.textContent = icon;
         
+        // Different messages for correct vs incorrect answers
         if (hint && type === 'incorrect') {
-            textEl.innerHTML = `<div class="feedback-main">${text}</div><div class="feedback-hint">${hint}</div><div class="feedback-skip-hint">Click or press Space to continue</div>`;
+            textEl.innerHTML = `<div class="feedback-main">${text}</div><div class="feedback-hint">${hint}</div><div class="feedback-skip-hint">Tap to continue</div>`;
+        } else if (type === 'incorrect') {
+            textEl.innerHTML = `<div class="feedback-main">${text}</div><div class="feedback-skip-hint">Tap to continue</div>`;
         } else {
-            textEl.innerHTML = `<div class="feedback-main">${text}</div><div class="feedback-skip-hint">Click or press Space to continue</div>`;
+            // Correct answers can show the original message or auto-dismiss
+            textEl.innerHTML = `<div class="feedback-main">${text}</div>`;
         }
         
         overlay.classList.remove('hidden');
@@ -702,45 +713,75 @@ class MultiplicationQuiz {
         const buttons = document.querySelectorAll('.answer-btn, .difficulty-btn, .tab-btn');
         
         buttons.forEach(button => {
+            let touchStarted = false;
+            
             // Prevent double-tap zoom on buttons
             button.addEventListener('touchstart', (e) => {
+                touchStarted = true;
                 button.style.transform = 'scale(0.98)';
             }, { passive: true });
             
             button.addEventListener('touchend', (e) => {
                 button.style.transform = '';
-                // Prevent ghost clicks
-                e.preventDefault();
+                
+                // Don't prevent default on interactive buttons to allow click events
+                // Only prevent default for preventing double-tap zoom on non-interactive elements
+                touchStarted = false;
             });
             
             button.addEventListener('touchcancel', (e) => {
                 button.style.transform = '';
+                touchStarted = false;
             });
         });
     }
     
     generateLearningHint(num1, num2, correctAnswer) {
+        // Prioritize the most helpful strategies first
+        
+        // Times 10 rule
+        if (num1 === 10) {
+            return `💡 Easy! Just add a zero to ${num2}: ${num2}0 = ${correctAnswer}`;
+        }
+        if (num2 === 10) {
+            return `💡 Easy! Just add a zero to ${num1}: ${num1}0 = ${correctAnswer}`;
+        }
+        
+        // Times 1 rule (highest priority after 10s)
+        if (num1 === 1) {
+            return `💡 Any number × 1 = that same number: ${num2} × 1 = ${num2}`;
+        }
+        if (num2 === 1) {
+            return `💡 Any number × 1 = that same number: ${num1} × 1 = ${num1}`;
+        }
+        
         const strategies = [
-            // Skip counting strategy
-            `💡 Try skip counting by ${num1}: ` + Array.from({length: num2}, (_, i) => num1 * (i + 1)).join(', '),
+            // Skip counting strategy (only for numbers > 1, and not for 10)
+            num1 > 1 && num1 !== 10 && num2 !== 10 ? `💡 Try skip counting by ${num1}: ` + Array.from({length: Math.min(num2, 8)}, (_, i) => num1 * (i + 1)).join(', ') + (num2 > 8 ? '...' : '') : null,
             
-            // Breaking down strategy
-            num2 > 5 ? `💡 Break it down: ${num1} × ${num2 - 1} + ${num1} = ${num1 * (num2 - 1)} + ${num1} = ${correctAnswer}` : null,
+            // Breaking down strategy (not for 10s)
+            num2 > 5 && num1 !== 10 && num2 !== 10 ? `💡 Break it down: ${num1} × ${num2 - 1} + ${num1} = ${num1 * (num2 - 1)} + ${num1} = ${correctAnswer}` : null,
             
-            // Doubling strategy for even numbers
-            num2 % 2 === 0 ? `💡 Double it: ${num1} × ${num2/2} × 2 = ${num1 * (num2/2)} × 2 = ${correctAnswer}` : null,
+            // Doubling strategy for even numbers > 2 (but not 10)
+            num2 % 2 === 0 && num2 > 2 && num1 !== 10 && num2 !== 10 ? `💡 Double it: ${num1} × ${num2/2} × 2 = ${num1 * (num2/2)} × 2 = ${correctAnswer}` : null,
             
-            // Commutative property
-            `💡 Remember: ${num1} × ${num2} = ${num2} × ${num1}`,
+            // Commutative property (only when numbers are different)
+            num1 !== num2 ? `💡 Remember: ${num1} × ${num2} = ${num2} × ${num1}` : null,
             
-            // Visual groups
+            // Visual groups (for smaller numbers)
             num1 <= 4 && num2 <= 4 ? `💡 Think of ${num1} groups of ${num2} things each` : null,
             
-            // Using 10s for larger numbers
-            num2 === 10 ? `💡 Easy! Just add a zero to ${num1}` : null,
+            // Same number multiplication - teach a visual/memory strategy
+            num1 === num2 ? `💡 Make a ${num1} by ${num1} square! Count all the dots: ${num1} rows of ${num1} = ${correctAnswer}` : null,
             
-            // Square numbers
-            num1 === num2 ? `💡 This is ${num1} squared (${num1} × ${num1})` : null
+            
+            // Times 2 is doubling
+            num1 === 2 ? `💡 ${num2} × 2 means double ${num2}: ${num2} + ${num2} = ${correctAnswer}` : null,
+            num2 === 2 ? `💡 ${num1} × 2 means double ${num1}: ${num1} + ${num1} = ${correctAnswer}` : null,
+            
+            // Times 5 pattern
+            num1 === 5 ? `💡 5 × ${num2} = count by 5s: ${num2} times` : null,
+            num2 === 5 ? `💡 ${num1} × 5 = count by 5s: ${num1} times` : null
         ].filter(Boolean);
         
         return strategies[Math.floor(Math.random() * strategies.length)];
@@ -960,15 +1001,28 @@ class MultiplicationQuiz {
         const overlay = document.getElementById('feedback-overlay');
         
         const skipFeedback = (e) => {
+            // Prevent event from bubbling to elements underneath
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Clear auto-dismiss timeout if it exists
             if (this.feedbackTimeout) {
                 clearTimeout(this.feedbackTimeout);
-                this.hideFeedback();
-                this.nextQuestion();
-                
-                // Remove event listeners
-                overlay.removeEventListener('click', skipFeedback);
-                overlay.removeEventListener('touchend', skipFeedback);
+                this.feedbackTimeout = null;
             }
+            
+            // Hide feedback immediately
+            this.hideFeedback();
+            
+            // Remove event listeners
+            overlay.removeEventListener('click', skipFeedback);
+            overlay.removeEventListener('touchend', skipFeedback);
+            document.removeEventListener('keydown', keySkip);
+            
+            // Add delay before going to next question to prevent accidental clicks
+            setTimeout(() => {
+                this.nextQuestion();
+            }, 100);
         };
         
         // Add click/touch handlers to skip feedback
@@ -979,7 +1033,6 @@ class MultiplicationQuiz {
         const keySkip = (e) => {
             if (e.key === ' ' || e.key === 'Enter') {
                 skipFeedback(e);
-                document.removeEventListener('keydown', keySkip);
             }
         };
         
@@ -999,12 +1052,21 @@ document.addEventListener('DOMContentLoaded', () => {
 // Add touch event handling for better mobile experience
 document.addEventListener('touchstart', function() {}, {passive: true});
 
-// Prevent zoom on double tap for better UX on mobile
+// Prevent zoom on double tap for better UX on mobile (but allow button interactions)
 document.addEventListener('touchend', function(e) {
     const now = new Date().getTime();
     const timeSince = now - lastTouchEnd;
+    
+    // Only prevent double-tap zoom if we're not on an interactive element
     if ((timeSince < 300) && (timeSince > 0)) {
-        e.preventDefault();
+        const target = e.target;
+        const isInteractive = target.tagName === 'BUTTON' || 
+                            target.closest('button') || 
+                            target.classList.contains('clickable');
+        
+        if (!isInteractive) {
+            e.preventDefault();
+        }
     }
     lastTouchEnd = now;
 }, false);
