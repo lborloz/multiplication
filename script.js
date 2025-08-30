@@ -2,7 +2,7 @@
 // Version: 1.2.0 - CSP compliance and security fixes
 class MultiplicationQuiz {
     constructor() {
-        this.version = '1.2.0';
+        this.version = '1.3.0';
         this.currentScreen = 'start';
         this.currentDifficulty = null;
         this.questions = [];
