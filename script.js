@@ -1,6 +1,8 @@
 // Game state management
+// Version: 1.1.0 - Cache busting and test data cleanup
 class MultiplicationQuiz {
     constructor() {
+        this.version = '1.1.0';
         this.currentScreen = 'start';
         this.currentDifficulty = null;
         this.questions = [];
@@ -35,11 +37,30 @@ class MultiplicationQuiz {
     }
     
     init() {
+        this.checkVersion();
         this.bindEvents();
         this.showScreen('start');
         this.loadHighScores();
         this.addTouchImprovements();
         this.checkSharedData();
+    }
+    
+    checkVersion() {
+        // Check for version changes and clear old data if needed
+        const storedVersion = localStorage.getItem('quiz_app_version');
+        
+        if (storedVersion !== this.version) {
+            console.log(`App updated from ${storedVersion || 'unknown'} to ${this.version}`);
+            
+            // For major version changes, we might want to migrate or clear old data
+            // Currently just storing the new version
+            localStorage.setItem('quiz_app_version', this.version);
+            
+            // If this is a significant update, we could show a notification
+            if (!storedVersion) {
+                console.log('First time loading the app');
+            }
+        }
     }
     
     bindEvents() {
