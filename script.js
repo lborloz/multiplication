@@ -119,7 +119,7 @@ class MultiplicationQuiz {
         });
         
         document.getElementById('import-scores-btn').addEventListener('click', () => {
-            document.getElementById('import-file-input').click();
+            this.createAndTriggerFileInput();
         });
         
         document.getElementById('share-scores-btn').addEventListener('click', () => {
@@ -146,10 +146,19 @@ class MultiplicationQuiz {
             this.hideShareModal();
         });
         
-        // File import handler
-        document.getElementById('import-file-input').addEventListener('change', (e) => {
-            this.importScoresData(e.target.files[0]);
+        // Name modal handler
+        document.getElementById('name-modal-start').addEventListener('click', () => {
+            this.saveName();
         });
+        
+        // Allow Enter key in name input
+        document.getElementById('name-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.saveName();
+            }
+        });
+        
+        // File import handler will be attached dynamically
         
         // High score tabs
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -197,7 +206,76 @@ class MultiplicationQuiz {
         this.announceToScreenReader(screenLabels[screenName] || `${screenName} screen loaded`);
     }
     
+    promptForName(difficulty) {
+        // Store the selected difficulty for later use
+        this.pendingDifficulty = difficulty;
+        
+        // Show the name modal
+        const modal = document.getElementById('name-modal');
+        modal.classList.remove('hidden');
+        
+        // Focus on the name input
+        setTimeout(() => {
+            document.getElementById('name-input').focus();
+        }, 100);
+    }
+    
+    saveName() {
+        const nameInput = document.getElementById('name-input');
+        const name = nameInput.value.trim();
+        
+        if (name === '') {
+            // Show error feedback
+            nameInput.style.borderColor = '#e53e3e';
+            nameInput.setAttribute('aria-describedby', 'name-error');
+            
+            // Create error message if it doesn't exist
+            let errorMsg = document.getElementById('name-error');
+            if (!errorMsg) {
+                errorMsg = document.createElement('div');
+                errorMsg.id = 'name-error';
+                errorMsg.className = 'error-message';
+                errorMsg.textContent = 'Please enter your name to continue.';
+                errorMsg.setAttribute('role', 'alert');
+                nameInput.parentNode.appendChild(errorMsg);
+            }
+            
+            nameInput.focus();
+            return;
+        }
+        
+        // Save the name to localStorage
+        localStorage.setItem('quiz_user_name', name);
+        
+        // Hide the modal
+        document.getElementById('name-modal').classList.add('hidden');
+        
+        // Clear the input for next time (if ever needed)
+        nameInput.value = '';
+        nameInput.style.borderColor = '';
+        nameInput.removeAttribute('aria-describedby');
+        
+        // Remove error message if it exists
+        const errorMsg = document.getElementById('name-error');
+        if (errorMsg) {
+            errorMsg.remove();
+        }
+        
+        // Start the quiz with the pending difficulty
+        if (this.pendingDifficulty) {
+            this.startQuiz(this.pendingDifficulty);
+            this.pendingDifficulty = null;
+        }
+    }
+    
     startQuiz(difficulty) {
+        // Check if we need to ask for the user's name
+        const userName = localStorage.getItem('quiz_user_name');
+        if (!userName) {
+            this.promptForName(difficulty);
+            return;
+        }
+        
         this.currentDifficulty = difficulty;
         this.currentQuestionIndex = 0;
         this.score = 0;
@@ -428,6 +506,19 @@ class MultiplicationQuiz {
         // Show high score notification
         const notification = document.getElementById('high-score-notification');
         if (isHighScore) {
+            const userName = localStorage.getItem('quiz_user_name');
+            const congratsText = userName ? `Congratulations, ${userName}!` : 'Congratulations!';
+            
+            // Update the notification text to be personalized
+            const notificationTitle = notification.querySelector('h3');
+            const notificationMessage = notification.querySelector('p');
+            if (notificationTitle) {
+                notificationTitle.textContent = `🎉 New High Score!`;
+            }
+            if (notificationMessage) {
+                notificationMessage.textContent = `${congratsText} You achieved a personal best!`;
+            }
+            
             notification.classList.remove('hidden');
         } else {
             notification.classList.add('hidden');
@@ -577,10 +668,10 @@ class MultiplicationQuiz {
     
     confirmClearScores() {
         this.showModal(
-            'Clear All Scores',
-            'This will permanently delete all your high scores. This cannot be undone.',
+            'Clear All Data',
+            'This will permanently delete all your high scores, progress data, and saved name. This cannot be undone.',
             () => {
-                this.clearAllScores();
+                this.clearAllData();
             }
         );
     }
@@ -590,6 +681,54 @@ class MultiplicationQuiz {
             localStorage.removeItem(`quiz_scores_${difficulty}`);
         });
         this.loadHighScores();
+    }
+    
+    clearAllData() {
+        // Clear all scores
+        Object.keys(this.difficulties).forEach(difficulty => {
+            localStorage.removeItem(`quiz_scores_${difficulty}`);
+        });
+        
+        // Clear user name
+        localStorage.removeItem('quiz_user_name');
+        
+        // Clear achievements
+        localStorage.removeItem('quiz_achievements');
+        
+        // Clear table progress
+        localStorage.removeItem('quiz_table_progress');
+        
+        // Clear app version (to trigger fresh start)
+        localStorage.removeItem('quiz_app_version');
+        
+        // Reset table progress to initial state
+        this.tableProgress = this.loadTableProgress();
+        
+        // Refresh displays
+        this.loadHighScores();
+        
+        // Show a confirmation message
+        alert('All quiz data has been cleared. You\'ll be asked for your name again when you start a new quiz.');
+    }
+    
+    createAndTriggerFileInput() {
+        // Create a temporary file input
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.json';
+        fileInput.style.display = 'none';
+        fileInput.setAttribute('aria-label', 'Select JSON file to import');
+        
+        // Add event listener
+        fileInput.addEventListener('change', (e) => {
+            this.importScoresData(e.target.files[0]);
+            // Remove the element after use
+            document.body.removeChild(fileInput);
+        });
+        
+        // Add to DOM temporarily and trigger click
+        document.body.appendChild(fileInput);
+        fileInput.click();
     }
     
     showModal(title, message, confirmAction) {
@@ -855,10 +994,24 @@ class MultiplicationQuiz {
     }
     
     getEncouragement() {
-        const encouragements = [
+        const userName = localStorage.getItem('quiz_user_name');
+        const basicEncouragements = [
             '🌟', '✨', '🎉', '👏', '💪', '🔥', 'Great!', 'Awesome!', 'Perfect!', 'Excellent!', 'Well done!'
         ];
-        return encouragements[Math.floor(Math.random() * encouragements.length)];
+        
+        if (userName) {
+            const personalizedEncouragements = [
+                `Great job, ${userName}!`, `Excellent, ${userName}!`, `Perfect, ${userName}!`, 
+                `Way to go, ${userName}!`, `Outstanding, ${userName}!`, `Amazing, ${userName}!`,
+                `Fantastic, ${userName}!`, `Brilliant, ${userName}!`, `Superb, ${userName}!`
+            ];
+            
+            // Mix personalized and basic encouragements
+            const allEncouragements = [...personalizedEncouragements, ...basicEncouragements];
+            return allEncouragements[Math.floor(Math.random() * allEncouragements.length)];
+        }
+        
+        return basicEncouragements[Math.floor(Math.random() * basicEncouragements.length)];
     }
     
     checkAchievements(isCorrect, responseTime) {
@@ -875,7 +1028,7 @@ class MultiplicationQuiz {
         
         // Speed achievements
         if (isCorrect && responseTime < 2000 && this.sessionStats.fastAnswers === 5) {
-            achievements.push({ type: 'speed', title: 'Speed Demon! ⚡', message: '5 answers under 2 seconds!' });
+            achievements.push({ type: 'speed', title: 'Speed Demon! ⚡', message: '5 answers under 2 seconds each!' });
         }
         
         // Accuracy achievements  
@@ -1212,8 +1365,7 @@ class MultiplicationQuiz {
             alert('Error importing data. Please check the file format and try again.');
         }
         
-        // Clear the file input
-        document.getElementById('import-file-input').value = '';
+        // Note: File input is now created dynamically and removed after use
     }
     
     showStatistics() {
@@ -1521,8 +1673,9 @@ class MultiplicationQuiz {
         urlInput.value = shareUrl;
         
         // Display summary
+        const userName = shareData.userName || 'Your';
         summary.innerHTML = `
-            <h4>Your Multiplication Quiz Stats</h4>
+            <h4>${userName}'s Multiplication Quiz Stats</h4>
             <div class="share-stats">
                 <div class="share-stat">
                     <div class="share-stat-value">${shareData.totalQuizzes}</div>
@@ -1560,8 +1713,11 @@ class MultiplicationQuiz {
         
         const masteredTables = Object.values(this.tableProgress)
             .filter(progress => progress.mastered).length;
+            
+        const userName = localStorage.getItem('quiz_user_name');
         
         return {
+            userName: userName || 'Anonymous Player',
             totalQuizzes,
             avgScore,
             bestScore,
@@ -1699,10 +1855,11 @@ class MultiplicationQuiz {
     }
     
     displaySharedStats(data) {
+        const challengerName = data.userName || 'Someone';
         const message = `
-🎯 Multiplication Quiz Stats Shared!
+🎯 ${challengerName} challenged you to beat their score!
 
-📊 Performance Summary:
+📊 ${challengerName}'s Performance Summary:
 • Total Quizzes: ${data.totalQuizzes}
 • Average Score: ${data.avgScore}%
 • Best Score: ${data.bestScore}%
@@ -1710,7 +1867,7 @@ class MultiplicationQuiz {
 
 Shared on: ${new Date(data.timestamp).toLocaleDateString()}
 
-Try to beat these scores in your own quiz!
+Can you beat ${challengerName}'s scores? Start a quiz to find out!
         `;
         
         alert(message);

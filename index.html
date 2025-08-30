@@ -164,7 +164,7 @@
                     <button id="export-scores-btn" class="secondary-btn" aria-label="Export all high scores data">Export Data</button>
                     <button id="import-scores-btn" class="secondary-btn" aria-label="Import high scores data">Import Data</button>
                     <button id="share-scores-btn" class="secondary-btn" aria-label="Share your high scores">Share Scores</button>
-                    <button id="clear-scores-btn" class="danger-btn" aria-label="Clear all saved high scores - this action cannot be undone">Clear All Scores</button>
+                    <button id="clear-scores-btn" class="danger-btn" aria-label="Clear all saved data including scores, progress, and name - this action cannot be undone">Clear All Data</button>
                 </div>
             </main>
         </div>
@@ -269,8 +269,6 @@
         </div>
     </div>
 
-    <!-- Hidden file input for data import -->
-    <input type="file" id="import-file-input" accept=".json" style="display: none;" aria-label="Select JSON file to import">
 
     <!-- Share Modal -->
     <div id="share-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
@@ -288,6 +286,22 @@
             </div>
             <div class="modal-actions">
                 <button id="share-modal-close" class="secondary-btn" aria-label="Close share dialog">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Name Input Modal -->
+    <div id="name-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="name-modal-title">
+        <div class="modal-content">
+            <h3 id="name-modal-title">Welcome to Multiplication Quiz!</h3>
+            <div class="name-content">
+                <p>What's your name? We'll use it to personalize your experience and cheer you on!</p>
+                <div class="name-input-container">
+                    <input type="text" id="name-input" maxlength="20" placeholder="Enter your name" aria-label="Your name">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="name-modal-start" class="primary-btn" aria-label="Start quiz with this name">Start Quiz</button>
             </div>
         </div>
     </div>

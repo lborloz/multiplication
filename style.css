@@ -1310,6 +1310,39 @@ button:focus {
     margin-top: 2rem;
 }
 
+/* Name Modal Styles */
+.name-content {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.name-input-container {
+    margin: 1rem 0;
+}
+
+#name-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    text-align: center;
+    transition: border-color 0.3s ease;
+}
+
+#name-input:focus {
+    outline: none;
+    border-color: var(--focus-color);
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.3);
+}
+
+.error-message {
+    color: var(--error-color);
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
 /* Share Modal Styles */
 .share-content {
     margin: 1.5rem 0;
