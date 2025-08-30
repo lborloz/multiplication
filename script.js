@@ -1,8 +1,8 @@
 // Game state management
-// Version: 1.1.0 - Cache busting and test data cleanup
+// Version: 1.2.0 - CSP compliance and security fixes
 class MultiplicationQuiz {
     constructor() {
-        this.version = '1.1.0';
+        this.version = '1.2.0';
         this.currentScreen = 'start';
         this.currentDifficulty = null;
         this.questions = [];
